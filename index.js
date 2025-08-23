@@ -17,7 +17,10 @@ import { toWei } from "thirdweb/utils"; // thêm dòng này
 config();
 
 const app = express();
-const PORT = 3000;
+
+// ✅ CORS: cho phép localhost (WebGL) và các domain bạn host
+const ALLOWED_ORIGINS = ["https://zetachain-backend-link-chain.onrender.com"];
+
 const chainZeta = defineChain({
   id: 7001,
   rpc: "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
@@ -28,8 +31,25 @@ const chainZeta = defineChain({
   },
 });
 
-app.use(cors({ origin: "*" }));
-app.use(bodyParser.json());
+app.use(
+  cors({
+    origin: ALLOWED_ORIGINS,
+    methods: ["POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
+// ✅ Rất quan trọng: bật preflight cho mọi route (hoặc riêng /transferCrossChain)
+app.options(
+  "*",
+  cors({
+    origin: ALLOWED_ORIGINS,
+    methods: ["POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
+app.use(express.json()); // thay cho body-parser
 
 function requireEnv(...keys) {
   const missing = keys.filter((k) => !process.env[k]);
@@ -142,6 +162,8 @@ app.post("/transferCrossChain", async (req, res) => {
   }
 });
 
-app.listen(PORT, "localhost", () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+// ✅ Render: dùng PORT do Render cấp và bind 0.0.0.0
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server on http://0.0.0.0:${PORT}`);
 });
