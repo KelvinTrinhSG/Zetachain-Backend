@@ -28,7 +28,15 @@ const chainZeta = defineChain({
   },
 });
 
-app.use(cors({ origin: "*" }));
+app.use(
+  cors({
+    origin: "http://localhost:63027", // ✅ chỉ rõ origin hợp lệ
+    methods: ["POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
+app.options("/transferCrossChain", cors()); // ✅ xử lý preflight request riêng cho route này
 app.use(bodyParser.json());
 
 function requireEnv(...keys) {
