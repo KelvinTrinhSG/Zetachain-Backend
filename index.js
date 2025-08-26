@@ -9,6 +9,7 @@ import {
   sendAndConfirmTransaction,
   defineChain,
   prepareContractCall,
+  readContract,
 } from "thirdweb";
 import { privateKeyToAccount } from "thirdweb/wallets";
 
@@ -30,7 +31,7 @@ const chainZeta = defineChain({
 
 app.use(
   cors({
-    origin: "http://localhost:63027", // ✅ chỉ rõ origin hợp lệ
+    origin: "*", // ✅ chỉ rõ origin hợp lệ
     methods: ["POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
   })
@@ -46,10 +47,9 @@ function requireEnv(...keys) {
 }
 
 app.post("/transferCrossChain", async (req, res) => {
-  const { tokenId, receiver, destination } = req.body;
+  const { receiver, destination } = req.body;
 
   console.log("\n📦 Incoming /transferCrossChain request");
-  console.log("➡ tokenId:     ", tokenId);
   console.log("➡ receiver:    ", receiver);
   console.log("➡ destination: ", destination);
 
@@ -77,37 +77,45 @@ app.post("/transferCrossChain", async (req, res) => {
       chain: chainZeta,
     });
 
-    // // --------------------- STEP 1: safeMint ---------------------
-    // console.log("🔁 [1/2] Preparing safeMint...");
-    // const transaction1 = await prepareContractCall({
-    //   contract,
-    //   method: "function safeMint(address toAddress, string uri)",
-    //   params: [process.env.TO_ADDRESS, process.env.TOKEN_URI],
-    // });
+    // --------------------- STEP 1: safeMint ---------------------
+    console.log("🔁 [1/2] Preparing safeMint...");
+    const transaction1 = await prepareContractCall({
+      contract,
+      method: "function safeMint(address toAddress, string uri)",
+      params: [process.env.TO_ADDRESS, process.env.TOKEN_URI],
+    });
 
-    // console.log("🚀 [1/2] Sending + waiting for confirmation (safeMint)...");
-    // let receipt1;
-    // try {
-    //   receipt1 = await sendAndConfirmTransaction({
-    //     transaction: transaction1,
-    //     account,
-    //   });
-    // } catch (e) {
-    //   console.error("❌ safeMint failed:", e);
-    //   return res
-    //     .status(500)
-    //     .json({ success: false, step: "mint", error: e.message });
-    // }
+    console.log("🚀 [1/2] Sending + waiting for confirmation (safeMint)...");
+    let receipt1;
+    try {
+      receipt1 = await sendAndConfirmTransaction({
+        transaction: transaction1,
+        account,
+      });
+    } catch (e) {
+      console.error("❌ safeMint failed:", e);
+      return res
+        .status(500)
+        .json({ success: false, step: "mint", error: e.message });
+    }
 
-    // const mintTxHash = receipt1.transactionHash;
-    // console.log("✅ [1/2] safeMint confirmed:", mintTxHash);
+    const mintTxHash = receipt1.transactionHash;
 
-    // // (Tuỳ chọn) Nếu cần đảm bảo thêm block confirmations, bạn có thể chờ thêm ở đây.
-    // // Ví dụ: đợi vài giây hoặc 1-2 block tuỳ chain.
-    // // await new Promise((r) => setTimeout(r, 3000));
+    console.log("✅ [1/2] safeMint confirmed:", mintTxHash);
+
+    // (Tuỳ chọn) Nếu cần đảm bảo thêm block confirmations, bạn có thể chờ thêm ở đây.
+    // Ví dụ: đợi vài giây hoặc 1-2 block tuỳ chain.
+    // await new Promise((r) => setTimeout(r, 3000));
+
+    const dataTokenId = await readContract({
+      contract,
+      method: "function tokenByIndex(uint256 index) view returns (uint256)",
+      params: [0],
+    });
+    const tokenIdStr = dataTokenId.toString();
+    console.log("data:", tokenIdStr);
 
     // --------------------- STEP 2: transferCrossChain ---------------------
-    const tokenIdStr = tokenId?.toString();
     console.log("🔁 [2/2] Preparing transferCrossChain...");
     const transaction2 = await prepareContractCall({
       contract,
